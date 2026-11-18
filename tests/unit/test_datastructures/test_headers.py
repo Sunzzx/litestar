@@ -386,3 +386,22 @@ def test_accept_best_match(accept_value: str, provided_types: list[str], best_ma
 def test_accept_accepts() -> None:
     accept = Accept("text/plain;q=0.8,text/html")
     assert accept.accepts(MediaType.TEXT)
+
+
+def test_accept_zero_quality_specificity_precedence() -> None:
+    # Issue #5206: More-specific q=0 media range must override broader wildcard range
+    accept = Accept("text/*;q=1,text/html;q=0")
+    assert accept.best_match(["text/html"]) is None
+    assert accept.best_match(["text/html", "text/plain"]) == "text/plain"
+    assert not accept.accepts("text/html")
+    assert accept.accepts("text/plain")
+
+    # Issue #5072: Direct q=0 media range is rejected
+    accept_q0 = Accept("text/plain;q=0")
+    assert accept_q0.best_match(["text/plain"]) is None
+    assert not accept_q0.accepts("text/plain")
+
+    # Wildcard rejection with general fallback
+    accept_img = Accept("*/*;q=1,image/*;q=0")
+    assert accept_img.best_match(["image/png"]) is None
+    assert accept_img.best_match(["image/png", "text/plain"]) == "text/plain"
